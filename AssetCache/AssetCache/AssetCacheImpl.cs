@@ -8,10 +8,9 @@ namespace AssetCache
         public object Build(string path, Action interruptChecker)
         {
             var parser = new UnityYamlParser();
-            var documentsEnumerator = parser.ParseFileStream(path);
-            while (documentsEnumerator.MoveNext())
+            foreach (var document in parser.ParseFileStream(path))
             {
-                parser.ParseDocument(documentsEnumerator.Current);
+                var parseInfo = parser.ParseDocument(document);
             }
             return null;
         }

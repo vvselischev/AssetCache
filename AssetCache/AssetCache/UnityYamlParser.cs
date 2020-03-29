@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,7 +8,7 @@ namespace AssetCache
 {
     public class UnityYamlParser
     {
-        public IEnumerator<YamlDocument> ParseFileStream(string path)
+        public IEnumerable<YamlDocument> ParseFileStream(string path)
         {
             using (var reader = new StreamReader(path))
             {
@@ -25,14 +24,14 @@ namespace AssetCache
                 while (!reader.EndOfStream)
                 {
                     var currentLine = reader.ReadLine() + '\n';
-                    if (!currentLine.StartsWith("---"))
-                    {
-                        currentDocumentText += currentLine;
-                    }
-                    else
+                    if (currentLine.StartsWith("---"))
                     {
                         yield return LoadDocument(currentDocumentText);
                         currentDocumentText = header + currentLine;
+                    }
+                    else
+                    {
+                        currentDocumentText += currentLine;
                     }
                 }
                 yield return LoadDocument(currentDocumentText);
@@ -88,23 +87,24 @@ namespace AssetCache
 //            }
 //        }
 
-        public void ParseDocument(YamlDocument document)
+        public ParseInfo ParseDocument(YamlDocument document)
         {
+            var parseInfo = new ParseInfo();
             var rootNode = (YamlMappingNode) document.RootNode;
 
-            var id = rootNode.Anchor;
-            Console.WriteLine($"id: {id}");
+            parseInfo.Id = ulong.Parse(rootNode.Anchor);
 
             if (rootNode.Children.Count == 0)
             {
-                return;
+                return parseInfo;
             }
             
             var entry = rootNode.Children.First();
-            Visit(entry.Value);
+            Visit(entry.Value, parseInfo);
+            return parseInfo;
         }
 
-        private void ParseMappingNode(YamlMappingNode node)
+        private void ParseMappingNode(YamlMappingNode node, ParseInfo parseInfo)
         {
             foreach (var property in node.Children)
             {
@@ -112,51 +112,52 @@ namespace AssetCache
                 if (keyNode.Value == "m_Component")
                 {
                     var componentIds = ParseAttachedComponents((YamlSequenceNode)property.Value);
-                    Console.Write("Attached: ");
-                    foreach (var id in componentIds)
-                    {
-                        Console.Write(id + " ");
-                    }
-                    Console.WriteLine();
-                } 
+                    parseInfo.AttachedComponents = componentIds.ToList();
+                }
                 else if (keyNode.Value == "fileID")
                 {
                     var valueNode = (YamlScalarNode) property.Value;
                     var id = ulong.Parse(valueNode.Value);
 
-                    if (id != 0)
+                    if (!parseInfo.IdUsages.ContainsKey(id))
                     {
-                        Console.WriteLine("use id:" + id);
+                        parseInfo.IdUsages[id] = 0;
                     }
+                    parseInfo.IdUsages[id]++;
                 }
                 else if (keyNode.Value == "guid")
                 {
                     var valueNode = (YamlScalarNode) property.Value;
                     var guid = valueNode.Value;
-                    Console.WriteLine("use guid:" + guid);
+                    
+                    if (!parseInfo.GuidUsages.ContainsKey(guid))
+                    {
+                        parseInfo.GuidUsages[guid] = 0;
+                    }
+                    parseInfo.GuidUsages[guid]++;
                 }
 
-                Visit(property.Value);
+                Visit(property.Value, parseInfo);
             }
         }
 
-        private void Visit(YamlNode node)
+        private void Visit(YamlNode node, ParseInfo parseInfo)
         {
             if (node.NodeType == YamlNodeType.Sequence)
             {
-                ParseSequenceNode((YamlSequenceNode)node);
+                ParseSequenceNode((YamlSequenceNode)node, parseInfo);
             }
             else if (node.NodeType == YamlNodeType.Mapping)
             {
-                ParseMappingNode((YamlMappingNode)node);
+                ParseMappingNode((YamlMappingNode)node, parseInfo);
             }
         }
 
-        private void ParseSequenceNode(YamlSequenceNode node)
+        private void ParseSequenceNode(YamlSequenceNode node, ParseInfo parseInfo)
         {
             foreach (var entry in node)
             {
-                Visit(entry);
+                Visit(entry, parseInfo);
             }
         }
 

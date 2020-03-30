@@ -10,61 +10,92 @@ namespace AssetCache
         private const int AccumulationPhaseSteps = 1;
         
         private CacheIndex globalIndex = new CacheIndex();
-        private Dictionary<string, IEnumerator<YamlDocument>> documentCache;
-        private Dictionary<string, DateTime> lastWriteTime;
+        private Dictionary<string, FileIncrementCache> fileIncrementCaches;
 
         public AssetCacheImpl()
         {
-            documentCache = new Dictionary<string, IEnumerator<YamlDocument>>();
-            lastWriteTime = new Dictionary<string, DateTime>();
+            fileIncrementCaches = new Dictionary<string, FileIncrementCache>();
         }
         
         public object Build(string path, Action interruptChecker)
         {
-            var fileIndex = new CacheIndex();
+            var fileIndex = GetFileIndex(path);
+            
             var parser = new UnityYamlParser();
-            IEnumerator<YamlDocument> documentEnumerator;
-
-            if (!WasFileChanged(path) && documentCache.ContainsKey(path))
-            {
-                documentEnumerator = documentCache[path];
-            }
-            else
-            {
-                documentEnumerator = parser.ParseFileStream(path);
-            }
+            var documentEnumerator = GetDocumentEnumerator(path, parser);
 
             var currentStep = 0;
-            var currentIndex = new CacheIndex();
+            var accumulatedIndex = new CacheIndex();
 
             while (documentEnumerator.MoveNext())
             {
-                parser.ParseDocument(documentEnumerator.Current, currentIndex);
+                parser.ParseDocument(documentEnumerator.Current, accumulatedIndex);
                 
                 currentStep++;
                 if (currentStep == AccumulationPhaseSteps)
                 {
                     currentStep = 0;
-                    fileIndex.Merge(currentIndex);
-                    currentIndex = new CacheIndex();
-                }
+                    fileIndex.Merge(accumulatedIndex);
+                    accumulatedIndex = new CacheIndex();
+                    
+                    CheckInterrupt(interruptChecker, path, fileIndex, documentEnumerator);
+                } 
             }
-            fileIndex.Merge(currentIndex);
+
+            if (currentStep != 0)
+            {
+                fileIndex.Merge(accumulatedIndex);
+            }
+            
+            CheckInterrupt(interruptChecker, path, fileIndex, documentEnumerator);
+          
             return fileIndex;
+        }
+
+        private void CheckInterrupt(Action interruptChecker, 
+            string path, 
+            CacheIndex fileIndex, 
+            IEnumerator<YamlDocument> documentEnumerator)
+        {
+            var incrementCache = new FileIncrementCache(fileIndex, File.GetLastWriteTime(path),
+                documentEnumerator);
+            fileIncrementCaches[path] = incrementCache;
+            interruptChecker.Invoke();
+        }
+
+        private CacheIndex GetFileIndex(string path)
+        {
+            if (fileIncrementCaches.ContainsKey(path) && !WasFileChanged(path))
+            {
+                return fileIncrementCaches[path].FileIndex;
+            }
+
+            return new CacheIndex();
+        }
+
+        private IEnumerator<YamlDocument> GetDocumentEnumerator(string path, UnityYamlParser parser)
+        {
+            if (fileIncrementCaches.ContainsKey(path) && !WasFileChanged(path))
+            {
+                return fileIncrementCaches[path].DocumentEnumerator;
+            }
+
+            return parser.ParseFileStream(path);
         }
 
         private bool WasFileChanged(string path)
         {
-            if (!lastWriteTime.ContainsKey(path))
+            if (fileIncrementCaches.ContainsKey(path))
             {
-                return true;
+                return File.GetLastWriteTime(path) != fileIncrementCaches[path].LastChangeTime;
             }
 
-            return File.GetLastWriteTime(path) == lastWriteTime[path];
+            return true;
         }
 
         public void Merge(string path, object result)
         {
+            fileIncrementCaches.Remove(path);
             globalIndex.Merge(result as CacheIndex);
         }
 

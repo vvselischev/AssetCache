@@ -69,23 +69,6 @@ namespace AssetCache
             yaml.Load(new StringReader(text));
             return yaml.Documents[0];
         }
-        
-        
-//        public IEnumerable<YamlDocument> ParseFile(string path)
-//        {
-//            // Fix unity's violation of the yaml format:
-//            var wholeFile = File.ReadAllText(path);
-//            wholeFile = Regex.Replace(wholeFile, "([0-9]+ &[0-9]+) stripped\n", "$1\n");
-//
-//            Console.WriteLine("Finish replace");
-//            using (var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(wholeFile))))
-//            {
-//                var yaml = new YamlStream();
-//                yaml.Load(reader);
-//                return null;
-//                return yaml.Documents;
-//            }
-//        }
 
         public void ParseDocument(YamlDocument document, CacheIndex cacheIndex)
         {
@@ -115,7 +98,10 @@ namespace AssetCache
                 {
                     var valueNode = property.Value as YamlScalarNode;
                     var id = ulong.Parse(valueNode.Value);
-                    cacheIndex.IncrementIdUsages(id);
+                    if (id != 0)
+                    {
+                        cacheIndex.IncrementIdUsages(id);
+                    }
                 }
                 else if (keyNode.Value == "guid")
                 {

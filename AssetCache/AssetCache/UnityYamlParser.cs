@@ -8,7 +8,7 @@ namespace AssetCache
 {
     public class UnityYamlParser
     {
-        public IEnumerable<YamlDocument> ParseFileStream(string path)
+        public IEnumerator<YamlDocument> ParseFileStream(string path)
         {
             using (var reader = new StreamReader(path))
             {
@@ -87,77 +87,64 @@ namespace AssetCache
 //            }
 //        }
 
-        public ParseInfo ParseDocument(YamlDocument document)
+        public void ParseDocument(YamlDocument document, CacheIndex cacheIndex)
         {
-            var parseInfo = new ParseInfo();
-            var rootNode = (YamlMappingNode) document.RootNode;
-
-            parseInfo.Id = ulong.Parse(rootNode.Anchor);
+            var rootNode = document.RootNode as YamlMappingNode;
+            var currentId = ulong.Parse(rootNode.Anchor);
 
             if (rootNode.Children.Count == 0)
             {
-                return parseInfo;
+                return;
             }
             
             var entry = rootNode.Children.First();
-            Visit(entry.Value, parseInfo);
-            return parseInfo;
+            Visit(entry.Value, cacheIndex, currentId);
         }
 
-        private void ParseMappingNode(YamlMappingNode node, ParseInfo parseInfo)
+        private void ParseMappingNode(YamlMappingNode node, CacheIndex cacheIndex, ulong currentId)
         {
             foreach (var property in node.Children)
             {
-                var keyNode = (YamlScalarNode) property.Key;
+                var keyNode = property.Key as YamlScalarNode;
                 if (keyNode.Value == "m_Component")
                 {
-                    var componentIds = ParseAttachedComponents((YamlSequenceNode)property.Value);
-                    parseInfo.AttachedComponents = componentIds.ToList();
+                    var componentIds = ParseAttachedComponents(property.Value as YamlSequenceNode);
+                    cacheIndex.AddAttachedComponents(currentId, componentIds.ToList());
                 }
                 else if (keyNode.Value == "fileID")
                 {
-                    var valueNode = (YamlScalarNode) property.Value;
+                    var valueNode = property.Value as YamlScalarNode;
                     var id = ulong.Parse(valueNode.Value);
-
-                    if (!parseInfo.IdUsages.ContainsKey(id))
-                    {
-                        parseInfo.IdUsages[id] = 0;
-                    }
-                    parseInfo.IdUsages[id]++;
+                    cacheIndex.IncrementIdUsages(id);
                 }
                 else if (keyNode.Value == "guid")
                 {
-                    var valueNode = (YamlScalarNode) property.Value;
+                    var valueNode = property.Value as YamlScalarNode;
                     var guid = valueNode.Value;
-                    
-                    if (!parseInfo.GuidUsages.ContainsKey(guid))
-                    {
-                        parseInfo.GuidUsages[guid] = 0;
-                    }
-                    parseInfo.GuidUsages[guid]++;
+                    cacheIndex.IncrementGuidUsages(guid);
                 }
 
-                Visit(property.Value, parseInfo);
+                Visit(property.Value, cacheIndex, currentId);
             }
         }
 
-        private void Visit(YamlNode node, ParseInfo parseInfo)
+        private void Visit(YamlNode node, CacheIndex cacheIndex, ulong currentId)
         {
             if (node.NodeType == YamlNodeType.Sequence)
             {
-                ParseSequenceNode((YamlSequenceNode)node, parseInfo);
+                ParseSequenceNode(node as YamlSequenceNode, cacheIndex, currentId);
             }
             else if (node.NodeType == YamlNodeType.Mapping)
             {
-                ParseMappingNode((YamlMappingNode)node, parseInfo);
+                ParseMappingNode(node as YamlMappingNode, cacheIndex, currentId);
             }
         }
 
-        private void ParseSequenceNode(YamlSequenceNode node, ParseInfo parseInfo)
+        private void ParseSequenceNode(YamlSequenceNode node, CacheIndex cacheIndex, ulong currentId)
         {
             foreach (var entry in node)
             {
-                Visit(entry, parseInfo);
+                Visit(entry, cacheIndex, currentId);
             }
         }
 

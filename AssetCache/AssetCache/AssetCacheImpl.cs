@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
@@ -16,7 +17,7 @@ namespace AssetCache
         
         public object Build(string path, Action interruptChecker)
         {
-            using (var reader = new StreamReader(path))
+            using (var reader = new StreamReader(path, GetYamlEncoding(path)))
             {
                 ValidateFileCache(path);
                 var fileIndex = GetFileIndex(path);
@@ -72,6 +73,26 @@ namespace AssetCache
             return globalIndex.GetAttachedComponents(gameObjectAnchor);
         }
 
+        private Encoding GetYamlEncoding(string path)
+        {
+            var bom = new byte[4];
+            using (var file = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                file.Read(bom, 0, 4);
+            }
+
+            if (bom[0] == 0xff && bom[1] == 0xfe)
+            {
+                return Encoding.Unicode;
+            }
+
+            if (bom[0] == 0xfe && bom[1] == 0xff)
+            {
+                return Encoding.BigEndianUnicode;
+            }
+            return Encoding.UTF8;
+        }
+        
         private void ValidateFileCache(string path)
         {
             if (WasFileChanged(path))
@@ -80,9 +101,7 @@ namespace AssetCache
             }
         }
 
-        private void CheckInterrupt(Action interruptChecker, 
-            string path, 
-            CacheIndex fileIndex, 
+        private void CheckInterrupt(Action interruptChecker, string path, CacheIndex fileIndex, 
             int processedLinesNumber)
         {
             fileIncrementCaches[path] = new FileIncrementCache(fileIndex, 
@@ -125,7 +144,8 @@ namespace AssetCache
             return true;
         }
 
-        private IEnumerable<YamlDocument> ParseFileStream(StreamReader reader, int[] counter, int skipLines = 0)
+        private IEnumerable<YamlDocument> ParseFileStream(StreamReader reader, int[] counter,
+            int skipLines = 0)
         {
             string firstLine;
             var header = ReadHeader(reader, out firstLine, skipLines);
@@ -179,6 +199,18 @@ namespace AssetCache
                 }
             }
 
+            if (skipLines == 0)
+            {
+                return header;
+            }
+
+            firstLine = SkipLines(reader, skipLines);
+            return header;
+        }
+
+        private string SkipLines(StreamReader reader, int skipLines)
+        {
+            var firstLine = "";
             while (!reader.EndOfStream && skipLines > 0)
             {
                 firstLine = reader.ReadLine() + '\n';
@@ -189,7 +221,7 @@ namespace AssetCache
             {
                 firstLine = "";
             }
-            return header;
+            return firstLine;
         }
 
         private YamlDocument LoadDocument(string text)

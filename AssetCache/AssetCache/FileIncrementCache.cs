@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using YamlDotNet.RepresentationModel;
 
 namespace AssetCache
 {
@@ -8,14 +6,14 @@ namespace AssetCache
     {
         public CacheIndex FileIndex { get; }
         public DateTime LastChangeTime { get; }
-        public IEnumerator<YamlDocument> DocumentEnumerator { get; }
+        public int ProcessedLinesNumber { get; }
 
         public FileIncrementCache(CacheIndex fileIndex, DateTime lastChangeTime,
-            IEnumerator<YamlDocument> documentEnumerator)
+            int processedLinesNumber)
         {
             FileIndex = fileIndex;
             LastChangeTime = lastChangeTime;
-            DocumentEnumerator = documentEnumerator;
+            ProcessedLinesNumber = processedLinesNumber;
         }
     }
 }

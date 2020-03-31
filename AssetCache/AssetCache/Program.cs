@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace AssetCache
 {
@@ -6,8 +7,11 @@ namespace AssetCache
     {
         public static void Main(string[] args)
         {
-            var testPath = "/home/vitalii/AssetCache/AssetCache/Examples/Small.unity";
-            //var testPath = "/home/vitalii/AssetCache/AssetCache/Examples/SampleScene.unity";
+            // 6 documents
+            //var testPath = "/home/vitalii/AssetCache/AssetCache/Examples/Small.unity";
+            
+            // ~440000 documents
+            var testPath = "/home/vitalii/AssetCache/AssetCache/Examples/SampleScene.unity";
             var cache = new AssetCacheImpl();
 
             var i = 0;
@@ -18,7 +22,7 @@ namespace AssetCache
                     var cacheResult = cache.Build(testPath, () =>
                     {
                         i++;
-                        if (i % 2 == 0)
+                        if (i == 10 || i == 1 || i == 3)
                         {
                             throw new OperationCanceledException();
                         }
@@ -28,12 +32,15 @@ namespace AssetCache
                 }
                 catch (OperationCanceledException e)
                 {
+                    if (i <= 3)
+                    {
+                        File.SetLastWriteTime(testPath, new DateTime(1984, 4, (i + 1) % 29 + 1));
+                    }
                 }
             }
-
             
 
-            Console.WriteLine("id=241: " + cache.GetLocalAnchorUsages(241));
+            Console.WriteLine("id=10304: " + cache.GetLocalAnchorUsages(10304));
             Console.WriteLine("guid=0000000000000000f000000000000000: " + 
                               cache.GetGuidUsages("0000000000000000f000000000000000"));
             Console.WriteLine("components of id=241: ");

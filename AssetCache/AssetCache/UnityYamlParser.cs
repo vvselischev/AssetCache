@@ -1,75 +1,11 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
 namespace AssetCache
 {
     public class UnityYamlParser
     {
-        public IEnumerator<YamlDocument> ParseFileStream(string path)
-        {
-            using (var reader = new StreamReader(path))
-            {
-                string firstLine;
-                var header = ReadHeader(reader, out firstLine);
-
-                if (firstLine == "")
-                {
-                    yield break;
-                }
-
-                var currentDocumentText = header + firstLine;
-                while (!reader.EndOfStream)
-                {
-                    var currentLine = reader.ReadLine() + '\n';
-                    if (currentLine.StartsWith("---"))
-                    {
-                        yield return LoadDocument(currentDocumentText);
-                        currentDocumentText = header + currentLine;
-                    }
-                    else
-                    {
-                        currentDocumentText += currentLine;
-                    }
-                }
-                yield return LoadDocument(currentDocumentText);
-            }
-        }
-
-        private string ReadHeader(StreamReader reader, out string firstLine)
-        {
-            var header = "";
-            firstLine = "";
-            while (!reader.EndOfStream)
-            {
-                var currentLine = reader.ReadLine() + '\n';
-                
-                // Fix unity's violation of the yaml format:
-                currentLine = Regex.Replace(currentLine, "([0-9]+ &[0-9]+) stripped\n", "$1\n");
-                
-                if (!currentLine.StartsWith("---"))
-                {
-                    header += currentLine;
-                }
-                else
-                {
-                    firstLine = currentLine;
-                    break;
-                }
-            }
-
-            return header;
-        }
-
-        private YamlDocument LoadDocument(string text)
-        {
-            var yaml = new YamlStream();
-            yaml.Load(new StringReader(text));
-            return yaml.Documents[0];
-        }
-
         public void ParseDocument(YamlDocument document, CacheIndex cacheIndex)
         {
             var rootNode = document.RootNode as YamlMappingNode;

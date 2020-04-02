@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AssetCache
 {
@@ -42,17 +44,30 @@ namespace AssetCache
         {
             idUsages[id] = GetIdUsages(id) + delta;
         }
-        
+
         public void IncrementGuidUsages(string guid, int delta = 1)
         {
             guidUsages[guid] = GetGuidUsages(guid) + delta;
         }
-
+        
         public void AddAttachedComponents(ulong id, IEnumerable<ulong> components)
         {
-            var existingComponents = GetAttachedComponents(id);
-            existingComponents.AddRange(components);
-            attachedComponents[id] = existingComponents;
+            attachedComponents[id] = components.ToList();
+        }
+
+        public void DecrementIdUsages(ulong id, int delta = 1)
+        {
+            idUsages[id] = Math.Max(0, GetIdUsages(id) - delta);
+        }
+        
+        public void DecrementGuidUsages(string guid, int delta = 1)
+        {
+            guidUsages[guid] = Math.Max(0, GetGuidUsages(guid) - delta);
+        }
+
+        public void RemoveAttachedComponents(ulong id)
+        {
+            attachedComponents.Remove(id);
         }
         
         public void Merge(CacheIndex anotherIndex)
@@ -70,6 +85,24 @@ namespace AssetCache
             foreach (var keyValue in anotherIndex.attachedComponents)
             {
                 AddAttachedComponents(keyValue.Key, keyValue.Value);
+            }
+        }
+
+        public void RemoveDataFromAnother(CacheIndex anotherIndex)
+        {
+            foreach (var keyValue in anotherIndex.idUsages)
+            {
+                DecrementIdUsages(keyValue.Key, keyValue.Value);
+            }
+            
+            foreach (var keyValue in anotherIndex.guidUsages)
+            {
+                DecrementGuidUsages(keyValue.Key, keyValue.Value);
+            }
+            
+            foreach (var keyValue in anotherIndex.attachedComponents)
+            {
+                RemoveAttachedComponents(keyValue.Key);
             }
         }
     }

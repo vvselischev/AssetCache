@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssetCacheImpl.cs" />
+    <Compile Include="GlobalCacheIndex.cs" />
     <Compile Include="CacheIndex.cs" />
     <Compile Include="FileIncrementCache.cs" />
     <Compile Include="IAssetCache.cs" />

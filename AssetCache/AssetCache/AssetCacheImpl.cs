@@ -9,12 +9,40 @@ namespace AssetCache
 {
     public class AssetCacheImpl : IAssetCache
     {
-        private const int AccumulationPhaseSteps = 5000;
+        /// <summary>
+        /// The default maximum number of documents to be processed during the accumulation phase.
+        /// </summary>
+        private const int DefaultAccumulationPhaseSteps = 5000;
+        private int accumulationPhaseSteps;
         
-        private CacheIndex globalIndex = new CacheIndex();
+        /// <summary>
+        /// Stores the index to query from.
+        /// </summary>
+        private GlobalCacheIndex globalIndex = new GlobalCacheIndex();
+        
+        /// <summary>
+        /// Stores a cache for each new file to use in case the file has not been changed
+        /// between interruptions.
+        /// Contains an already built file index, a timestamp to check file status and a number
+        /// of processed lines in order to skip them while reading the input stream next time.
+        /// </summary>
         private Dictionary<string, FileIncrementCache> fileIncrementCaches = 
             new Dictionary<string, FileIncrementCache>();
+
+        public AssetCacheImpl(int accumulationPhaseSteps = DefaultAccumulationPhaseSteps)
+        {
+            this.accumulationPhaseSteps = accumulationPhaseSteps;
+        }
         
+        /// <inheritdoc />
+        /// <summary>
+        /// The index build represents the cycle of two phases:
+        /// Accumulation phase: read and parse documents from the input stream one by one,
+        /// accumulating the information in the temporary index.
+        /// Merge phase: copy the information from the temporary index to the file index.
+        /// Too frequent checks for interruption are bad,
+        /// so we do not perform them during the accumulation phase.
+        /// </summary>
         public object Build(string path, Action interruptChecker)
         {
             using (var reader = new StreamReader(path, GetYamlEncoding(path)))
@@ -34,7 +62,7 @@ namespace AssetCache
                     parser.ParseDocument(document, accumulatedIndex);
 
                     currentStep++;
-                    if (currentStep == AccumulationPhaseSteps)
+                    if (currentStep == accumulationPhaseSteps)
                     {
                         fileIndex.Merge(accumulatedIndex);
                         currentStep = 0;
@@ -53,9 +81,14 @@ namespace AssetCache
             }
         }
         
+        /// <inheritdoc />
+        /// <summary>
+        /// The same file might be merged again after some changes,
+        /// so the global index removes the old information before merging.
+        /// </summary>
         public void Merge(string path, object result)
         {
-            globalIndex.Merge(result as CacheIndex);
+            globalIndex.AddIndex(path, result as CacheIndex);
         }
 
         public int GetLocalAnchorUsages(ulong anchor)

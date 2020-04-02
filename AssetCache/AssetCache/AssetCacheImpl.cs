@@ -42,6 +42,9 @@ namespace AssetCache
         /// Merge phase: copy the information from the temporary index to the file index.
         /// Too frequent checks for interruption are bad,
         /// so we do not perform them during the accumulation phase.
+        ///
+        /// Needs answer: may two objects with the same id occur in different files?
+        /// The current implementation allows that but 'merges' their entities.
         /// </summary>
         public object Build(string path, Action interruptChecker)
         {

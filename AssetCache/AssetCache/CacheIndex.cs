@@ -52,7 +52,9 @@ namespace AssetCache
         
         public void AddAttachedComponents(ulong id, IEnumerable<ulong> components)
         {
-            attachedComponents[id] = components.ToList();
+            var existingComponents = GetAttachedComponents(id);
+            existingComponents.AddRange(components);
+            attachedComponents[id] = existingComponents;
         }
 
         public void DecrementIdUsages(ulong id, int delta = 1)

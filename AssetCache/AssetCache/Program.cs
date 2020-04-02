@@ -8,10 +8,14 @@ namespace AssetCache
         public static void Main(string[] args)
         {
             // 6 documents
-            const string testPath = "/home/vitalii/AssetCache/AssetCache/Examples/Small.unity";
+            //const string testPath = "/home/vitalii/AssetCache/AssetCache/Examples/Small.unity";
+            
+            // 6 documents
+            const string testPath = "/home/vitalii/AssetCache/AssetCache/Examples/Medium.unity";
             
             // ~440000 documents
             //var testPath = "/home/vitalii/AssetCache/AssetCache/Examples/SampleScene.unity";
+            
             var cache = new AssetCacheImpl();
 
             var i = 0;

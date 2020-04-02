@@ -33,10 +33,14 @@ namespace AssetCache
                 else if (keyNode.Value == "fileID")
                 {
                     var valueNode = property.Value as YamlScalarNode;
-                    var id = ulong.Parse(valueNode.Value);
-                    if (id != 0)
+
+                    ulong id;
+                    if (ulong.TryParse(valueNode.Value, out id))
                     {
-                        cacheIndex.IncrementIdUsages(id);
+                        if (id != 0)
+                        {
+                            cacheIndex.IncrementIdUsages(id);
+                        }
                     }
                 }
                 else if (keyNode.Value == "guid")

@@ -52,6 +52,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Samples\Another-Small.unity" />
     <Content Include="Samples\Small-Copy.unity" />
     <Content Include="Samples\Small.unity" />
   </ItemGroup>

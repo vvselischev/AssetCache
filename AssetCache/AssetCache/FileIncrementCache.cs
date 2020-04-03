@@ -2,6 +2,9 @@ using System;
 
 namespace AssetCache
 {
+    /// <summary>
+    /// Stores an already processed file data to support an incremental build.
+    /// </summary>
     public class FileIncrementCache
     {
         public CacheIndex FileIndex { get; }

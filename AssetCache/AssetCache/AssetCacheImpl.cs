@@ -183,6 +183,8 @@ namespace AssetCache
         private IEnumerable<YamlDocument> ParseFileStream(StreamReader reader, int[] counter,
             int skipLines = 0)
         {
+            var parser = new UnityYamlParser();
+
             string firstLine;
             var header = ReadHeader(reader, out firstLine, skipLines);
 
@@ -199,7 +201,7 @@ namespace AssetCache
                 var currentLine = reader.ReadLine() + '\n';
                 if (currentLine.StartsWith("---"))
                 {
-                    yield return LoadDocument(currentDocumentText);
+                    yield return parser.LoadDocument(currentDocumentText);
                     currentDocumentText = header + currentLine;
                 }
                 else
@@ -210,7 +212,7 @@ namespace AssetCache
                 counter[0]++;
             }
 
-            yield return LoadDocument(currentDocumentText);
+            yield return parser.LoadDocument(currentDocumentText);
         }
 
         private string ReadHeader(StreamReader reader, out string firstLine, int skipLines = 0)
@@ -258,13 +260,6 @@ namespace AssetCache
                 firstLine = "";
             }
             return firstLine;
-        }
-
-        private YamlDocument LoadDocument(string text)
-        {
-            var yaml = new YamlStream();
-            yaml.Load(new StringReader(text));
-            return yaml.Documents[0];
         }
     }
 }

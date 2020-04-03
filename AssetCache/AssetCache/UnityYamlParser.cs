@@ -1,11 +1,28 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using YamlDotNet.RepresentationModel;
 
 namespace AssetCache
 {
+    /// <summary>
+    /// Uses the YamlDotNet library to parse documents from unity file.
+    /// </summary>
     public class UnityYamlParser
     {
+        /// <summary>
+        /// Converts the document from the given string to the YamlDocument.
+        /// </summary>
+        public YamlDocument LoadDocument(string text)
+        {
+            var yaml = new YamlStream();
+            yaml.Load(new StringReader(text));
+            return yaml.Documents[0];
+        }
+        
+        /// <summary>
+        /// Parses the document and puts the collected data in the given index.
+        /// </summary>
         public void ParseDocument(YamlDocument document, CacheIndex cacheIndex)
         {
             var rootNode = document.RootNode as YamlMappingNode;

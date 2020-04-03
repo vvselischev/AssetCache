@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace AssetCache
 {
+    /// <summary>
+    /// An index of cache data to query from.
+    /// </summary>
     public class CacheIndex
     {
         private Dictionary<ulong, int> idUsages = new Dictionary<ulong, int>();

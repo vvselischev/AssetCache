@@ -11,14 +11,17 @@ namespace AssetCacheTests
     {
         private string smallSample;
         private string smallSampleCopy;
+        private string anotherSample;
 
         [SetUp]
         public void SetUp()
         {
-            smallSample = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+            smallSample = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                 "../../Samples/Small.unity");
-            smallSampleCopy = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+            smallSampleCopy = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                 "../../Samples/Small-Copy.unity");
+            anotherSample = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                "../../Samples/Another-Small.unity");
         }
 
         [Test]
@@ -59,7 +62,7 @@ namespace AssetCacheTests
             Assert.AreEqual(new List<ulong> {1253103, 1253104, 1253107},
                 cache.GetComponentsFor(1253105));
         }
-        
+
         [Test]
         public void TestMergeSameFileNotDuplicate()
         {
@@ -75,14 +78,14 @@ namespace AssetCacheTests
             Assert.AreEqual(new List<ulong> {1253104, 1253106, 1253105},
                 cache.GetComponentsFor(1253103));
         }
-        
+
         [Test]
         public void TestMergeSeveralFiles()
         {
             var cache = new AssetCacheImpl();
             var fileCache = cache.Build(smallSample, () => { });
             cache.Merge(smallSample, fileCache);
-            
+
             var copyFileCache = cache.Build(smallSampleCopy, () => { });
             cache.Merge(smallSampleCopy, copyFileCache);
 
@@ -123,61 +126,74 @@ namespace AssetCacheTests
         [Test]
         public void TestInterruptionWithModification()
         {
-            // todo
-            var cache = new AssetCacheImpl(1);
-            while (true)
+            var fileName = Path.GetTempFileName();
+            File.Copy(smallSample, fileName, true);
+            
+            var cache = new AssetCacheImpl(4);
+            try
             {
-                try
+                cache.Build(smallSample,
+                    () => { throw new OperationCanceledException(); });
+                // Must ask for interruption
+                Assert.Fail();
+            }
+            catch (OperationCanceledException)
+            {
+                File.Copy(anotherSample, fileName, true);
+                while (true)
                 {
-                    var fileCache = cache.Build(smallSample,
-                        () => { throw new OperationCanceledException(); });
-                    cache.Merge(smallSample, fileCache);
-                    break;
-                }
-                catch (OperationCanceledException)
-                {
-                    var fileCache = cache.Build(smallSample,
-                        () => {});
-                    cache.Merge(smallSample, fileCache);
+                    try
+                    {
+                        var anotherCache = cache.Build(anotherSample, () => { });
+                        cache.Merge(anotherSample, anotherCache);
+                        break;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
                 }
             }
 
-            Assert.AreEqual(3, cache.GetLocalAnchorUsages(1253103));
-            Assert.AreEqual(2, cache.GetLocalAnchorUsages(1253104));
-            Assert.AreEqual(2, cache.GetGuidUsages("f70555f144d8491a825f0804e09c671c"));
+            Assert.AreEqual(1, cache.GetLocalAnchorUsages(1253103));
+            Assert.AreEqual(0, cache.GetLocalAnchorUsages(1253104));
+            Assert.AreEqual(1, cache.GetGuidUsages("f70555f144d8491a825f0804e09c671c"));
             Assert.AreEqual(1, cache.GetGuidUsages("bb7e9cca953d340059eb1e053bbbae31"));
-            Assert.AreEqual(new List<ulong> {1253104, 1253106, 1253105},
+            Assert.AreEqual(new List<ulong>(),
                 cache.GetComponentsFor(1253103));
+            Assert.AreEqual(1, cache.GetLocalAnchorUsages(1043780135));
+            Assert.AreEqual(new List<ulong> {1050298693, 1050298695, 1050298694},
+                cache.GetComponentsFor(1050298692));
+            
+            File.Delete(fileName);
         }
-        
-        [Test]
-        public void TestMergeAgainAfterModification()
-        {
-            // todo
-            var cache = new AssetCacheImpl(1);
-            while (true)
-            {
-                try
-                {
-                    var fileCache = cache.Build(smallSample,
-                        () => { throw new OperationCanceledException(); });
-                    cache.Merge(smallSample, fileCache);
-                    break;
-                }
-                catch (OperationCanceledException)
-                {
-                    var fileCache = cache.Build(smallSample,
-                        () => {});
-                    cache.Merge(smallSample, fileCache);
-                }
-            }
 
-            Assert.AreEqual(3, cache.GetLocalAnchorUsages(1253103));
-            Assert.AreEqual(2, cache.GetLocalAnchorUsages(1253104));
-            Assert.AreEqual(2, cache.GetGuidUsages("f70555f144d8491a825f0804e09c671c"));
+        [Test]
+        public void TestBuildAndMergeAgainAfterModification()
+        {
+            var fileName = Path.GetTempFileName();
+            
+            File.Copy(smallSample, fileName, true);
+            var cache = new AssetCacheImpl(1);
+            var fileCache = cache.Build(fileName,
+                        () => { });
+            cache.Merge(fileName, fileCache);
+            
+            File.Copy(anotherSample, fileName, true);
+            var anotherCache = cache.Build(fileName,
+                () => { });
+            cache.Merge(fileName, anotherCache);
+
+            Assert.AreEqual(1, cache.GetLocalAnchorUsages(1253103));
+            Assert.AreEqual(0, cache.GetLocalAnchorUsages(1253104));
+            Assert.AreEqual(1, cache.GetGuidUsages("f70555f144d8491a825f0804e09c671c"));
             Assert.AreEqual(1, cache.GetGuidUsages("bb7e9cca953d340059eb1e053bbbae31"));
-            Assert.AreEqual(new List<ulong> {1253104, 1253106, 1253105},
+            Assert.AreEqual(new List<ulong>(),
                 cache.GetComponentsFor(1253103));
+            Assert.AreEqual(1, cache.GetLocalAnchorUsages(1043780135));
+            Assert.AreEqual(new List<ulong> {1050298693, 1050298695, 1050298694},
+                cache.GetComponentsFor(1050298692));
+            
+            File.Delete(fileName);
         }
     }
 }

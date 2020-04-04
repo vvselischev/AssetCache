@@ -171,13 +171,15 @@ namespace AssetCacheTests
         public void TestBuildAndMergeAgainAfterModification()
         {
             var fileName = Path.GetTempFileName();
-            
+
+            File.SetLastWriteTime(smallSample, DateTime.Now.Subtract(TimeSpan.FromSeconds(1)));
             File.Copy(smallSample, fileName, true);
             var cache = new AssetCacheImpl(1);
             var fileCache = cache.Build(fileName,
                         () => { });
             cache.Merge(fileName, fileCache);
             
+            File.SetLastWriteTime(anotherSample, DateTime.Now);
             File.Copy(anotherSample, fileName, true);
             var anotherCache = cache.Build(fileName,
                 () => { });
